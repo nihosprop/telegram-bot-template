@@ -1,0 +1,135 @@
+services:
+  bot:
+    image: niwibonihs/<REPO-NAME>:${APP_TAG}
+    container_name: <YOUR-Container-Name>
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+    networks:
+      - <YOUR-NAME-NET>
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  postgres_db:
+    image: postgres:18-alpine
+    container_name: <YOUR-NAME>-DB
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "${POSTGRES_DB}" ]
+      interval: 10s
+    networks:
+      - <YOUR-NAME-NET>
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 256M
+
+  migrations:
+    image: niwibonihs/<REPO-NAME>:${APP_TAG}
+    container_name: <YOUR-NAME>-Migrations
+    environment:
+      - PYTHONPATH=/app/src
+    command: /app/.venv/bin/alembic upgrade head
+    env_file:
+      - .env
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+    networks:
+      - <YOUR-NAME-NET>
+    restart: "no"
+
+  redis:
+    image: redis:8-alpine
+    container_name: <YOUR-NAME>-Redis
+    command: redis-server --appendonly yes --appendfsync everysec --requirepass ${REDIS_PASSWORD}
+    restart: unless-stopped
+    env_file:
+      - .env
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - <YOUR-NAME-NET>
+    volumes:
+      - redis_data:/data
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 32M
+  worker:
+    image: niwibonihs/<REPO-NAME>:${APP_TAG}
+    container_name: <YOUR-NAME>-Worker
+    command: python -m taskiq worker tasks.setup:broker --fs-discover
+    environment:
+      - PYTHONPATH=/app/src
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres_db:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 256M
+    networks:
+      - <YOUR-NAME-NET>
+
+  scheduler:
+    image: niwibonihs/<REPO-NAME>:${APP_TAG}
+    container_name: Metric-Scheduler
+    command: python -m taskiq scheduler tasks.scheduler:scheduler --fs-discover
+    environment:
+      - PYTHONPATH=/app/src
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+      worker:
+        condition: service_started
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 128M
+    networks:
+      - <YOUR-NAME-NET>
+
+networks:
+  <YOUR-NAME-NET>:
+    name: <YOUR-NAME>-Net
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
