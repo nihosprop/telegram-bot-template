@@ -1,6 +1,6 @@
 [project]
 name = "tg_bot_template"
-version = "0.2.0"
+version = "v1.0.0"
 description = ""
 requires-python = ">=3.14"
 dependencies = [
