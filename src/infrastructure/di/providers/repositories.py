@@ -3,10 +3,6 @@ from sqlalchemy.ext.asyncio import (
     AsyncSession,
 )
 
-from db.repository.course_repo import CourseRepo
-from db.repository.reply_repo import ReplyRepo
-from db.repository.statistic_repo import StatisticRepo
-from db.repository.stepik_user_repo import StepikUserRepo
 from db.repository.tg_user_repo import TGUserRepository
 
 

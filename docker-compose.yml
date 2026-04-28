@@ -105,7 +105,7 @@ services:
 
   scheduler:
     image: niwibonihs/<REPO-NAME>:${APP_TAG}
-    container_name: Metric-Scheduler
+    container_name: <YOUR-NAME>-Scheduler
     command: python -m taskiq scheduler tasks.scheduler:scheduler --fs-discover
     environment:
       - PYTHONPATH=/app/src
